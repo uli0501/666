@@ -105,17 +105,17 @@
     window.addEventListener('hashchange', handleRouting);
 
     function handleRouting() {
+        // 【新增】初始化時，先檢查有沒有之前的備份
+        const backup = localStorage.getItem('survey_backup');
+        if (backup && Object.keys(finalAnswers).length === 0) {
+            finalAnswers = JSON.parse(backup);
+        }
+    
         const hash = window.location.hash;
-        // 解析 Hash 決定目前是第幾題 (例如 #step2 -> index 1)
         let step = parseInt(hash.replace('#step', '')) || 1;
         currentQIndex = step - 1;
-
+    
         if (currentQIndex < 0) currentQIndex = 0;
-        if (currentQIndex >= questions.length) {
-            // 如果超出題目，這裏不處理，由 submitData 處理
-            return;
-        }
-
         renderQuestion();
     }
 
@@ -149,7 +149,7 @@
 
     function toggleSelect(element, value, q) {
         let selections = finalAnswers[q.id] || [];
-
+    
         if (selections.includes(value)) {
             selections = selections.filter(item => item !== value);
         } else {
@@ -161,7 +161,11 @@
         }
         
         finalAnswers[q.id] = selections;
-        renderQuestion(); // 重新渲染確保樣式正確
+    
+        // 【新增】將目前的進度備份到 localStorage
+        localStorage.setItem('survey_backup', JSON.stringify(finalAnswers));
+        
+        renderQuestion();
     }
 
     function updateButtonState() {
@@ -208,15 +212,35 @@
         });
 
         try {
-            await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            window.location.hash = "finished"; // 防止按上一頁回到題目
-        } catch (e) {
-            console.error("傳送失敗:", e);
+        // 3. 執行非同步發送
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            // --- 重點：發送成功後的處理 ---
+            
+            // A. 清除瀏覽器內的備份暫存，確保下次開啟是空的
+            localStorage.removeItem('survey_backup');
+            
+            // B. 改變網址 Hash，避免使用者按「上一頁」回到最後一題重複提交
+            window.location.hash = "finished";
+
+            // C. 顯示感謝畫面
+            document.getElementById('loading-section').classList.add('hidden');
+            document.getElementById('thank-you').classList.remove('hidden');
+        } else {
+            throw new Error("伺服器回應錯誤");
         }
+
+    } catch (e) {
+        // 4. 錯誤處理：如果斷網或發送失敗
+        console.error("傳送失敗:", e);
+        
+        // 提示使用者，並讓他們可以嘗試重新發送（顯示回題目區或顯示錯誤提示）
+        alert("資料傳輸失敗，請檢查網路連線後重試。");
 
         document.getElementById('loading-section').classList.add('hidden');
         document.getElementById('thank-you').classList.remove('hidden');
