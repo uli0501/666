@@ -165,8 +165,9 @@
         }
     ];
 
-    // 根據檔名自動判定目前題目序號 (q1.html -> index 0)
-    const filename = window.location.pathname.split('/').pop() || 'q1.html';
+    const path = window.location.pathname.split('/').pop();
+    const filename = (path === '' || path === 'index.html') ? 'q1.html' : path;
+    
     let currentQIndex = parseInt(filename.replace(/[^0-9]/g, '')) - 1;
     if (isNaN(currentQIndex)) currentQIndex = 0;
 
@@ -245,24 +246,26 @@
         }
     }
 
-    // 統一處理導向
     function handleNavigation() {
-        // 先存下當前頁面的答案
-        localStorage.setItem(`survey_${questions[currentQIndex].id}`, JSON.stringify(tempSelections));
+    localStorage.setItem(`survey_${questions[currentQIndex].id}`, JSON.stringify(tempSelections));
 
         if (currentQIndex < questions.length - 1) {
-            // 跳轉至下一頁
+            // 跳轉至下一頁 (q2.html, q3.html ...)
             window.location.href = `q${currentQIndex + 2}.html`;
         } else {
-            // 最後一題，執行提交
             submitData();
         }
     }
 
     function goBack() {
-        // 回上一頁也存一下當前選擇
         localStorage.setItem(`survey_${questions[currentQIndex].id}`, JSON.stringify(tempSelections));
-        window.location.href = `q${currentQIndex}.html`;
+        
+        // 如果現在是第二題 (index 1)，回上一題要回 index.html
+        if (currentQIndex === 1) {
+            window.location.href = `index.html`;
+        } else {
+            window.location.href = `q${currentQIndex}.html`;
+        }
     }
 
     async function submitData() {
