@@ -106,6 +106,7 @@
 
     function handleRouting() {
         // 【新增】初始化時，先檢查有沒有之前的備份
+        if (window.location.hash === "#finished") return;
         const backup = localStorage.getItem('survey_backup');
         if (backup && Object.keys(finalAnswers).length === 0) {
             finalAnswers = JSON.parse(backup);
